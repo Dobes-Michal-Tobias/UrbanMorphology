@@ -169,7 +169,7 @@ místo toho explorativní otázkou nad výsledky shlukování (§3.3). Zdroje:
 
 | Rozhodnutí | Možnosti | Status |
 |---|---|---|
-| `network_type` | `'drive'` / `'all'` | → rozhodnout v pilotu (Fáze 0) |
+| `network_type` | `'drive'` / `'all'` | **Prozatímně rozhodnuto (2026-09-01): `'all'` pro celý vzorek.** Pilot ukázal, že `'drive'` u malých sídel (Loštice, Štíty) dává příliš řídkou síť pro spolehlivé metriky; `'all'` je konzistentnější napříč velikostmi, i za cenu odklonu od Boeingovy primárně `'drive'` metodologie (zmínit v článku — měříme spíš "prostupnost prostoru" než čistě dopravní strukturu). Přesná hranice velikosti sídla, kde by `'drive'` ještě dávalo smysl, je otázka pro konzultaci s odborníkem na sídelní geografii — zatím neřešeno, `'all'` je bezpečná jednotná volba. `download_graph()` má teď `network_type="all"` jako default. |
 | Binning bearingu | 16 / 32 / 36 binů | → rozhodnout v pilotu, srovnat s Boeingovou metodou |
 | Shlukovací algoritmus | K-Means / DBSCAN / hierarchické | → vyzkoušet víc, srovnat interpretovatelnost |
 | Definice hranice sídla | admin. boundary / okolí bodu (radius) | → admin. boundary (aktuální vzorek jsou samá města s jasnou OSM hranicí) |
