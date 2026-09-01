@@ -1,0 +1,29 @@
+# Core
+numpy
+pandas
+scikit-learn
+python-dotenv
+tqdm
+pyyaml
+
+# Visualization (default stack — see src/viz.py)
+matplotlib
+seaborn
+
+# Notebook / kernel
+jupyter
+ipykernel
+
+# --- Spatial / street network analysis ---
+networkx                   # graph analysis -> see modules/network_viz
+osmnx                      # OSM download + graph construction, bearing/orientation
+geopandas                  # vector data handling
+shapely
+pyogrio                    # fast GDAL-backed I/O (also used for local .osm.pbf reads)
+
+# --- Optional, uncomment per project ---
+# torch                     # deep learning
+# transformers              # HF models
+# plotly                    # interactive viz
+# groq                      # LLM API client
+# openai                    # if using OpenAI-compatible endpoints

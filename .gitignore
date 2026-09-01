@@ -1,0 +1,65 @@
+# --- personal / local notes ---
+principles.md
+
+# --- data & artifacts (never commit research data or trained weights) ---
+# Exceptions below: small open-government reference data and the sample
+# definition are committed for reproducibility — everything OSM-derived
+# (graphs, metrics, the full municipality registry) stays regenerable-only.
+data/*
+!data/raw/
+!data/interim/
+!data/processed/
+!data/external/
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+!data/**/.gitkeep
+
+!data/external/geogram/
+!data/processed/sample_seed.csv
+
+models/*
+!models/.gitkeep
+
+reports/figures/*
+!reports/figures/.gitkeep
+
+# --- secrets ---
+.env
+.env.*
+!.env.example
+
+# --- python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- environments ---
+.venv/
+venv/
+env/
+.python-version
+
+# --- jupyter ---
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# --- editors / OS ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- misc ---
+*.log
+cache/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
