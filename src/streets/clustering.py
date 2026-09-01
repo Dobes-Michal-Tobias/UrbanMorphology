@@ -19,8 +19,12 @@ DEFAULT_FEATURE_COLUMNS = [
 ]
 
 
-def build_feature_matrix(df: pd.DataFrame, feature_columns: list[str] = DEFAULT_FEATURE_COLUMNS) -> tuple[pd.DataFrame, list[str]]:
-    """Standardize the chosen metric columns; drops rows with any missing metric."""
+def build_feature_matrix(df: pd.DataFrame, feature_columns: list[str] = DEFAULT_FEATURE_COLUMNS) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Standardize the chosen metric columns; drops rows with any missing metric.
+
+    Returns (standardized feature matrix, the corresponding rows of `df` — same
+    index — so cluster labels/coordinates can be joined back to settlement names).
+    """
     clean = df.dropna(subset=feature_columns).reset_index(drop=True)
     X = StandardScaler().fit_transform(clean[feature_columns])
     return pd.DataFrame(X, columns=feature_columns, index=clean.index), clean
@@ -32,6 +36,11 @@ def fit_kmeans(X: pd.DataFrame, k: int) -> tuple[KMeans, float]:
     labels = model.fit_predict(X)
     score = silhouette_score(X, labels) if k > 1 else float("nan")
     return model, score
+
+
+def sweep_k(X: pd.DataFrame, k_values: range) -> dict[int, float]:
+    """Silhouette score for each candidate k — inspect before picking the final k for fit_kmeans."""
+    return {k: fit_kmeans(X, k)[1] for k in k_values}
 
 
 def project_2d(X: pd.DataFrame) -> pd.DataFrame:

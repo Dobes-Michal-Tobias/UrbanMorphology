@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import osmnx as ox
+import pandas as pd
+import seaborn as sns
 
 from src.viz import PALETTE
 
@@ -65,3 +67,29 @@ def plot_polar_grid(graphs: dict[str, nx.MultiDiGraph], num_bins: int = 36, ncol
 
     fig.tight_layout()
     return fig
+
+
+def plot_silhouette_scores(scores: dict[int, float], ax: plt.Axes | None = None) -> plt.Axes:
+    """Silhouette score per candidate k — pick the k that maximizes this before fitting the final KMeans."""
+    if ax is None:
+        _, ax = plt.subplots()
+    ks = sorted(scores)
+    ax.plot(ks, [scores[k] for k in ks], marker="o")
+    ax.set_xlabel("k (počet shluků)")
+    ax.set_ylabel("silhouette score")
+    ax.set_xticks(ks)
+    return ax
+
+
+def plot_cluster_scatter(coords: pd.DataFrame, labels: np.ndarray, names: pd.Series | None = None, ax: plt.Axes | None = None) -> plt.Axes:
+    """2D PCA scatter of settlements colored by cluster label (see src.streets.clustering.project_2d)."""
+    if ax is None:
+        _, ax = plt.subplots()
+    sns.scatterplot(x=coords["pc1"], y=coords["pc2"], hue=labels, palette=PALETTE, s=80, ax=ax)
+    if names is not None:
+        for (x, y), name in zip(coords[["pc1", "pc2"]].to_numpy(), names):
+            ax.annotate(name, (x, y), fontsize=7, xytext=(3, 3), textcoords="offset points")
+    ax.set_xlabel("PC1")
+    ax.set_ylabel("PC2")
+    ax.legend(title="shluk")
+    return ax
