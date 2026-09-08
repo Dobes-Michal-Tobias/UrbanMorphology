@@ -26,6 +26,7 @@ def slugify(name: str) -> str:
 
 
 PRAGUE_DISTRICT_CODE = 9999  # RÚIAN placeholder "district" for Prague (no real okres) — breaks Nominatim if included in the query
+MIN_EDGES = 10  # a real settlement (even a small town) has far more edges than this — fewer means the download silently came back truncated/empty
 
 
 def _place_query(row: pd.Series) -> str:
@@ -56,6 +57,13 @@ def download_graph(row: pd.Series, network_type: str = "all", graphs_dir: Path =
         # Kralíky) this fallback could silently match the wrong municipality.
         print(f"[osm] '{query}' returned no nodes, retrying as '{row['name']}, Czech Republic' — verify this is the right settlement if the name isn't unique")
         G = ox.graph_from_place(f"{row['name']}, Czech Republic", network_type=network_type)
+
+    if G.number_of_edges() < MIN_EDGES:
+        # Overpass occasionally returns a truncated/near-empty response (timeout,
+        # oversized query) without raising — caching this would silently poison
+        # every later run, since a cached file is never re-downloaded.
+        msg = f"'{row['name']}' ({network_type}) came back with only {G.number_of_edges()} edges — likely a truncated download, not a real result. Not caching; just re-run to retry."
+        raise RuntimeError(msg)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ox.save_graphml(G, path)
