@@ -47,7 +47,7 @@ def _place_query(row: pd.Series) -> str:
     return f"{row['name']}, {row['district_name']}, Czech Republic"
 
 
-def download_graph(row: pd.Series, network_type: str = "all", graphs_dir: Path = GRAPHS_DIR) -> nx.MultiDiGraph:
+def download_graph(row: pd.Series, network_type: str = "drive", graphs_dir: Path = GRAPHS_DIR) -> nx.MultiDiGraph:
     """Return the street network graph for one municipality (registry row), using the disk cache if present.
 
     `row` must have `name` and `district_name` (from src.streets.registry) —
