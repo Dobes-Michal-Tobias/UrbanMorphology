@@ -41,8 +41,16 @@ MIN_EDGES = 10  # a real settlement (even a small town) has far more edges than 
 
 
 def _place_query(row: pd.Series) -> str:
-    """Build the Nominatim query string, qualified by district except for Prague's placeholder pseudo-district."""
-    if row.get("district_code") == PRAGUE_DISTRICT_CODE:
+    """Build the Nominatim query string, qualified by district — except when that's redundant or breaks geocoding.
+
+    Skipped for Prague's placeholder pseudo-district, and for any city that
+    is itself the seat of its district (district_name == name, true for
+    most krajská města — Hradec Králové, Jihlava, Karlovy Vary, Olomouc,
+    Pardubice, České Budějovice, ...): duplicating the name confuses
+    Nominatim into returning a non-polygon result instead of the city
+    boundary.
+    """
+    if row.get("district_code") == PRAGUE_DISTRICT_CODE or row["district_name"] == row["name"]:
         return f"{row['name']}, Czech Republic"
     return f"{row['name']}, {row['district_name']}, Czech Republic"
 
@@ -63,12 +71,13 @@ def download_graph(row: pd.Series, network_type: str = "drive", graphs_dir: Path
     for attempt in range(1, max_attempts + 1):
         try:
             G = ox.graph_from_place(query, network_type=network_type)
-        except ValueError:
+        except (ValueError, TypeError):
             # District-qualified query occasionally confuses Nominatim into matching
-            # the wrong (or an empty) polygon; retry with just the settlement name.
-            # Flagged because for a name that's ambiguous nationally (e.g. Mohelnice,
-            # Kralíky) this fallback could silently match the wrong municipality.
-            print(f"[osm] '{query}' returned no nodes, retrying as '{row['name']}, Czech Republic' — verify this is the right settlement if the name isn't unique")
+            # the wrong (or an empty/non-polygon) result; retry with just the
+            # settlement name. Flagged because for a name that's ambiguous
+            # nationally (e.g. Mohelnice, Kralíky) this fallback could silently
+            # match the wrong municipality.
+            print(f"[osm] '{query}' didn't geocode to a usable polygon, retrying as '{row['name']}, Czech Republic' — verify this is the right settlement if the name isn't unique")
             G = ox.graph_from_place(f"{row['name']}, Czech Republic", network_type=network_type)
 
         if G.number_of_edges() >= MIN_EDGES:
