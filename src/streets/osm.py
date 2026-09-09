@@ -7,12 +7,14 @@ skipped instantly.
 """
 
 import re
+import time
 import unicodedata
 from pathlib import Path
 
 import networkx as nx
 import osmnx as ox
 import pandas as pd
+import requests
 
 from src.config import DATA_RAW
 
@@ -39,6 +41,17 @@ def slugify(name: str) -> str:
 PRAGUE_DISTRICT_CODE = 9999  # RÚIAN placeholder "district" for Prague (no real okres) — breaks Nominatim if included in the query
 MIN_EDGES = 10  # a real settlement (even a small town) has far more edges than this — fewer means the download silently came back truncated/empty
 
+# This network's connection to overpass-api.de sometimes fails at the TCP
+# handshake itself (ConnectTimeout, never even reaches the server) after a
+# few successful downloads in a row — the same "volume-based throttling"
+# symptom diagnosed (but not fully solved) in the sibling OptiCyclingTown
+# project. A short pause after every live download, plus a longer cooldown
+# before retrying a hard connection failure, gives whatever's throttling a
+# chance to reset — no guarantee, just a mitigation.
+DOWNLOAD_PAUSE_S = 3
+CONNECTION_MAX_ATTEMPTS = 4
+CONNECTION_COOLDOWN_S = 90
+
 
 def _place_query(row: pd.Series) -> str:
     """Build the Nominatim query string, qualified by district — except when that's redundant or breaks geocoding.
@@ -55,19 +68,9 @@ def _place_query(row: pd.Series) -> str:
     return f"{row['name']}, {row['district_name']}, Czech Republic"
 
 
-def download_graph(row: pd.Series, network_type: str = "drive", graphs_dir: Path = GRAPHS_DIR) -> nx.MultiDiGraph:
-    """Return the street network graph for one municipality (registry row), using the disk cache if present.
-
-    `row` must have `name` and `district_name` (from src.streets.registry) —
-    the district disambiguates municipalities sharing a name.
-    """
-    slug = slugify(row["name"])
-    path = graphs_dir / f"{slug}_{network_type}.graphml"
-    if path.exists():
-        return ox.load_graphml(path)
-
+def _download_with_content_retry(row: pd.Series, network_type: str, max_attempts: int = 3) -> nx.MultiDiGraph:
+    """One settlement, retrying if the result comes back empty/truncated (but the connection itself worked)."""
     query = _place_query(row)
-    max_attempts = 3
     for attempt in range(1, max_attempts + 1):
         try:
             G = ox.graph_from_place(query, network_type=network_type)
@@ -81,17 +84,40 @@ def download_graph(row: pd.Series, network_type: str = "drive", graphs_dir: Path
             G = ox.graph_from_place(f"{row['name']}, Czech Republic", network_type=network_type)
 
         if G.number_of_edges() >= MIN_EDGES:
-            break
+            return G
         # Overpass occasionally returns a truncated/near-empty response (server
         # load, timeout) without raising an error — a heavy "all" query on a big
         # city is the most likely to hit this. Retry a couple of times before
         # giving up; never cache a bad result, since a cached file never gets
         # re-downloaded and would silently poison every later run.
         print(f"[osm] '{row['name']}' ({network_type}) attempt {attempt}/{max_attempts} came back with only {G.number_of_edges()} edges, retrying...")
-    else:
-        msg = f"'{row['name']}' ({network_type}) came back with only {G.number_of_edges()} edges after {max_attempts} attempts — likely a truncated download, not a real result."
-        raise RuntimeError(msg)
+
+    msg = f"'{row['name']}' ({network_type}) came back with only {G.number_of_edges()} edges after {max_attempts} attempts — likely a truncated download, not a real result."
+    raise RuntimeError(msg)
+
+
+def download_graph(row: pd.Series, network_type: str = "drive", graphs_dir: Path = GRAPHS_DIR) -> nx.MultiDiGraph:
+    """Return the street network graph for one municipality (registry row), using the disk cache if present.
+
+    `row` must have `name` and `district_name` (from src.streets.registry) —
+    the district disambiguates municipalities sharing a name.
+    """
+    slug = slugify(row["name"])
+    path = graphs_dir / f"{slug}_{network_type}.graphml"
+    if path.exists():
+        return ox.load_graphml(path)
+
+    for conn_attempt in range(1, CONNECTION_MAX_ATTEMPTS + 1):
+        try:
+            G = _download_with_content_retry(row, network_type)
+            break
+        except requests.exceptions.RequestException as e:
+            if conn_attempt == CONNECTION_MAX_ATTEMPTS:
+                raise
+            print(f"[osm] connection to Overpass failed ({e.__class__.__name__}) on '{row['name']}', waiting {CONNECTION_COOLDOWN_S}s before retry {conn_attempt + 1}/{CONNECTION_MAX_ATTEMPTS}")
+            time.sleep(CONNECTION_COOLDOWN_S)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ox.save_graphml(G, path)
+    time.sleep(DOWNLOAD_PAUSE_S)  # brief pause after every live download, see module note above
     return G
