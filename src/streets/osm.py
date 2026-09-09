@@ -17,6 +17,7 @@ import pandas as pd
 import requests
 
 from src.config import DATA_RAW
+from src.io_utils import iter_progress
 
 GRAPHS_DIR = DATA_RAW / "graphs"
 
@@ -121,3 +122,31 @@ def download_graph(row: pd.Series, network_type: str = "drive", graphs_dir: Path
     ox.save_graphml(G, path)
     time.sleep(DOWNLOAD_PAUSE_S)  # brief pause after every live download, see module note above
     return G
+
+
+def download_all(rows: pd.DataFrame, network_types: list[str], graphs_dir: Path = GRAPHS_DIR) -> list[str]:
+    """Download + cache every settlement x network_type combo, doing nothing else.
+
+    Deliberately separate from metrics computation: this is the only part
+    of the pipeline that touches the network, so it's the only part that
+    can hit Overpass/connection trouble. Run this once, on its own, and
+    every later step (metrics, clustering, plotting) works purely from the
+    local `.graphml` cache — no network, so no risk of a metrics-code bug
+    turning into a network retry storm, and this function has no dependency
+    on anything analysis-specific, so it's reusable as-is in another project
+    that just needs Czech street networks on disk.
+
+    One settlement's exhausted retries don't stop the batch — logged and
+    skipped, so the rest still get a chance. Returns the list of settlement
+    names that failed (empty if everything succeeded); re-running only
+    retries those, since everything else is now cached.
+    """
+    failed = []
+    combos = [(row, nt) for _, row in rows.iterrows() for nt in network_types]
+    for row, network_type in iter_progress(combos, desc="downloading graphs"):
+        try:
+            download_graph(row, network_type=network_type, graphs_dir=graphs_dir)
+        except Exception as e:
+            print(f"[osm] giving up on '{row['name']}' ({network_type}) for now: {e.__class__.__name__}: {e}")
+            failed.append(row["name"])
+    return failed
