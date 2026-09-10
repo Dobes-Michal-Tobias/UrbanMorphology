@@ -16,7 +16,7 @@ import pandas as pd
 
 from src.config import RANDOM_SEED
 from src.io_utils import already_done_ids, append_row_csv, iter_progress
-from src.streets.osm import download_graph, GRAPHS_DIR
+from src.streets.osm import download_graph, slugify, GRAPHS_DIR
 
 BETWEENNESS_MAX_SOURCES = 500  # exact betweenness is O(V*(V+E)) -- on a big city's graph (thousands of nodes) that's minutes per settlement; sampling this many source nodes gives a close estimate for a fraction of the cost
 
@@ -86,15 +86,27 @@ def build_metrics_table(
 ) -> pd.DataFrame:
     """Compute metrics for each settlement in `rows`, caching results in `csv_path`.
 
+    Purely offline: reads only graphs already cached by `src.streets.osm`
+    (`download_graph`/`download_all`) and never downloads anything itself —
+    a settlement whose graph isn't on disk yet is skipped (logged), not
+    fetched, so a network hiccup here can't crash a metrics run. Run
+    `download_all()` first to fill in anything skipped, then re-run this.
+
     Settlements already present in `csv_path` (matched on name + network_type)
-    are skipped — safe to re-run after a crash or just to add more settlements
-    later without recomputing everything. Returns the full cached table.
+    are skipped too — safe to re-run after a crash or just to add more
+    settlements later without recomputing everything. Returns the full
+    cached table.
     """
     done_ids = already_done_ids(csv_path, id_column="id")
     todo = [row for _, row in rows.iterrows() if f"{row['name']}__{network_type}" not in done_ids]
 
+    skipped = []
     for row in iter_progress(todo, desc=f"metrics ({network_type})"):
-        G = download_graph(row, network_type=network_type, graphs_dir=graphs_dir)
+        graph_path = graphs_dir / f"{slugify(row['name'])}_{network_type}.graphml"
+        if not graph_path.exists():
+            skipped.append(row["name"])
+            continue
+        G = download_graph(row, network_type=network_type, graphs_dir=graphs_dir)  # cache hit only, given the check above
         metrics = extract_metrics(G, num_bins=num_bins)
         append_row_csv(csv_path, {
             "id": f"{row['name']}__{network_type}",
@@ -103,22 +115,26 @@ def build_metrics_table(
             **metrics,
         })
 
+    if skipped:
+        print(f"[metrics] skipped {len(skipped)} settlement(s) with no cached graph yet — run download_all() for these, then re-run: {skipped}")
+
+    if not csv_path.exists():
+        return pd.DataFrame()
     return pd.read_csv(csv_path, encoding="utf-8")
 
 
-def prefetch(
+def compute_metrics(
     rows: pd.DataFrame,
     network_types: list[str],
     csv_path: Path,
     graphs_dir: Path = GRAPHS_DIR,
     num_bins: int = 36,
 ) -> pd.DataFrame:
-    """Download every settlement's graph and compute its metrics, for every requested network_type, up front.
+    """Compute metrics for every settlement x network_type combo already downloaded — purely offline, see build_metrics_table.
 
-    Run this once (from a notebook) for whatever sample you're working with —
-    afterwards `data/raw/graphs/` and `csv_path` hold everything locally, so
-    later notebook runs (even days apart, offline) never touch the network or
-    recompute anything already there.
+    Run `download_all()` first; afterwards this (and everything after it —
+    clustering, plotting) never touches the network, so it's always safe to
+    re-run, e.g. right after fixing a bug in this module.
     """
     tables = [
         build_metrics_table(rows, network_type=nt, csv_path=csv_path, graphs_dir=graphs_dir, num_bins=num_bins)
