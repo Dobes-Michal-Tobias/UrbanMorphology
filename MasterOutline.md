@@ -27,7 +27,7 @@ města (Zlín, Havířov) v ČR?
 morfologických typů?
 
 **RQ3 — Explorativní:** Odpovídají shluky z RQ2 nějakému rozpoznatelnému
-geografickému nebo historickému vzorci (Čechy vs. Morava, hory vs. nížiny,
+geografickému (velikost obyvatel) nebo historickému vzorci (Čechy vs. Morava, hory vs. nížiny,
 kraj/region), nebo je morfologický typ na geografii nezávislý? Otevřená,
 zkoumaná nad výsledky shlukování — bez apriorně vybraných párů konkrétních
 obcí (viz §5 — příklady typologie půdorysu jako okrouhlice/ulicovka se ukázaly
@@ -116,6 +116,23 @@ vybraném vzorku, než se škáluje na plný vzorek.
 
 **Výstup:** `notebooks/01_full_sample.ipynb`, `reports/figures/cz_orientation_poster.png`
 
+### FÁZE 1.5 — Všechna česká města (rozhodnuto 2026-09-11)
+**Cíl:** Vzorek rozšířen z 33 na **všechny obce se statusem města** (`status_code`
+3/4/5 = město/statutární město/hlavní město v RÚIAN registru) — 610 sídel. Zdroj:
+`cz_municipalities.csv` (RÚIAN), ne Wikipedie — máme přesnější a už disambiguovaná
+data lokálně.
+
+- Vzorek: `data/processed/all_czech_towns.csv` (610 sídel; 3 dvojice stejného
+  jména — Hranice, Jesenice, Staré Město — disambiguované přes okres, stejně jako
+  dřív).
+- Vzhledem k opakovaným výpadkům Overpass spojení (viz níže) se čeká běh na
+  hodiny/dny, ne minuty — `download_all()` je navržený přesně na tohle (jedno
+  selhavší město dávku nezastaví).
+- **n=610 řeší i obavu z malého vzorku pro shlukování** (viz diskuze v konverzaci
+  2026-09-10 — 27 bodů bylo na hraně spolehlivosti pro K-Means se 7 metrikami).
+
+**Výstup:** `notebooks/02_all_czech_towns.ipynb`, `data/processed/all_czech_towns_metrics.csv`
+
 ### FÁZE 2 (volitelná, budoucí) — Rozšíření / publikace
 Pokud výsledky budou po konzultaci s kolegy zajímavé: rozšířit vzorek, přidat
 statistické testování rozdílů mezi shluky/typy, případně mezinárodní srovnání pro
@@ -183,6 +200,20 @@ místo toho explorativní otázkou nad výsledky shlukování (§3.3). Zdroje:
 |---|---|---|
 | **OpenStreetMap / OSMnx** | Uliční síť (graf), hranice sídel | Hlavní zdroj |
 | **RÚIAN + ČSÚ** (`data/processed/cz_municipalities.csv`) | Kód obce, okres, kraj, populace, souřadnice pro všech 6 259 obcí ČR | Migrováno z projektu `GeoGram_sufix-ice` (`src/streets/registry.py`) — používá se k disambiguaci sídel se shodným názvem a jako kontext pro RQ3 |
+
+### `status_code` v registru (odvozeno empiricky 2026-09-11, oficiální číselník RÚIAN online nedohledán)
+
+| Kód | Status | Počet v ČR |
+|---|---|---|
+| 5 | Hlavní město (Praha) | 1 |
+| 4 | Statutární město | 26 |
+| 3 | Město | 583 |
+| 6 | Městys | 233 |
+| 2 | Obec (bez zvláštního statusu) | 5 411 |
+| 1 | Vojenský újezd | 5 |
+
+Ověřeno na známých referenčních obcích (Praha→5, Brno/Ostrava/Plzeň/Kladno→4) a
+součtem `3+4+5=610`, což odpovídá běžně citovanému počtu měst v ČR.
 
 ---
 
