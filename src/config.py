@@ -9,10 +9,16 @@ here as the project grows.
 """
 
 from pathlib import Path
+import sys
 
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "modules"))
+from dataviz_style.chartstyle import (  # noqa: E402
+    PRIMARY_COLOR, ACCENT_COLOR, NEUTRAL_COLOR, INK_COLOR, MUTED_COLOR,
+    CATEGORICAL_PALETTE,
+)
 
 load_dotenv(PROJECT_ROOT / ".env")
 

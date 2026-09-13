@@ -4,11 +4,11 @@ Convention for this project (see principles.md): all plotting logic lives
 here, not in notebooks. Notebooks only call functions defined in this file
 and display/save the result.
 
-Default plotting library is seaborn/matplotlib with the shared style set up
-by `set_style()`. If a project needs an interactive library (plotly, bokeh)
-or something like networkx for graph drawing, add separate functions below
-(e.g. `plot_network(...)`) but keep using `PALETTE` / `set_style()` so
-figures still look consistent with the rest of the project.
+Style/fonts/palette come from `modules/dataviz_style/chartstyle.py` (shared
+across projects — see that module's STYLE_GUIDE.md for the full rationale),
+not from a project-local `sns.set_theme()` call. `PALETTE` here is kept only
+as the name `src.streets.viz` already imports for its polar plots — it's the
+same `PRIMARY_COLOR` chartstyle uses everywhere else, not a colormap.
 
 Every plotting function should:
   - accept data + an optional `ax` (so it composes into subplots/grids)
@@ -21,28 +21,29 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from src.config import REPORTS_FIGURES
+from src.config import REPORTS_FIGURES, PRIMARY_COLOR, CATEGORICAL_PALETTE
+from dataviz_style.chartstyle import set_style as _set_style, save_fig as _save_fig
 
-PALETTE = "viridis"
+PALETTE = PRIMARY_COLOR  # kept for src.streets.viz backward-compat; a single color, not a colormap
 FIGSIZE = (8, 5)
-DPI = 150
 
 
-def set_style() -> None:
-    """Call once per notebook/session before plotting."""
-    sns.set_theme(style="whitegrid", palette=PALETTE)
+def set_style(bg: str | None = None) -> None:
+    """Call once per notebook/session before plotting. `bg="cream"` for the
+    warm-canvas poster look; `bg=None` (default) keeps whatever was last set."""
+    _set_style(bg=bg)
     plt.rcParams["figure.figsize"] = FIGSIZE
-    plt.rcParams["figure.dpi"] = DPI
-    plt.rcParams["savefig.bbox"] = "tight"
 
 
-def save_fig(fig: plt.Figure, name: str, subdir: str | None = None) -> Path:
-    """Save a figure under reports/figures/[subdir/]name.png and return the path."""
+def save_fig(fig: plt.Figure, name: str, subdir: str | None = None, fmt: str = "svg") -> Path:
+    """Save a figure under reports/figures/[subdir/]name.<fmt> (SVG by default).
+
+    Use `fmt="png"` for a chart with thousands of overlapping elements (a
+    dense scatter, a map) or for a `compose_poster()`/`plot_polar_grid()`
+    export meant for social/print rather than a web page.
+    """
     out_dir = REPORTS_FIGURES / subdir if subdir else REPORTS_FIGURES
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{name}.png"
-    fig.savefig(out_path)
-    return out_path
+    return _save_fig(fig, out_dir / name, fmt=fmt)
 
 
 def plot_barplot(
@@ -61,8 +62,10 @@ def plot_barplot(
     """
     if ax is None:
         _, ax = plt.subplots()
-    sns.barplot(data=data, x=x, y=y, hue=hue, ax=ax)
+    sns.barplot(data=data, x=x, y=y, hue=hue, ax=ax, palette=CATEGORICAL_PALETTE if hue else None,
+                color=None if hue else PRIMARY_COLOR)
     if title:
         ax.set_title(title)
     ax.tick_params(axis="x", rotation=30)
+    sns.despine(ax=ax, left=True)
     return ax
