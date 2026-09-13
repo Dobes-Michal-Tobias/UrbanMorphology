@@ -1,5 +1,6 @@
 # --- personal / local notes ---
 principles.md
+CLAUDE.md
 
 # --- data & artifacts (never commit research data or trained weights) ---
 # Exceptions below: small open-government reference data and the sample
