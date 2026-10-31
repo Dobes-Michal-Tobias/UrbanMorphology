@@ -5,6 +5,8 @@ a obcí optikou urbánní morfologie: orientaci ulic (bearing), topologické
 vlastnosti grafu a morfologické shlukování. Postaveno na
 [OSMnx](https://osmnx.readthedocs.io/), NetworkX a scikit-learn.
 
+**Výsledky:** [Doprava a rovně! Orientace ulic českých měst](https://dobes-michal-tobias.github.io/michal-tobias-dobes.cz/projekty/urban-morphology.html) (článek na webu)
+
 English version: [README.md](README.md)
 
 Přímou inspirací je poster/článek Geoffa Boeinga *"Urban spatial order:
