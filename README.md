@@ -5,6 +5,8 @@ cities and towns through the lens of urban morphology: street orientation
 (bearing), graph-topological properties, and morphological clustering.
 Built on [OSMnx](https://osmnx.readthedocs.io/), NetworkX, and scikit-learn.
 
+**Results write-up (in Czech):** [Doprava a rovně! Orientace ulic českých měst](https://dobes-michal-tobias.github.io/michal-tobias-dobes.cz/projekty/urban-morphology.html)
+
 Czech version: [README.cs.md](README.cs.md)
 
 Directly inspired by Geoff Boeing's *"Urban spatial order: street network
